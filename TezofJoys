@@ -1,0 +1,126 @@
+import smartpy as sp
+class TezOfJoySmartContract(sp.Contract):
+    def __init__(self):
+        self.init(orphans = sp.big_map())
+
+    # Defines the addOrphanage entry point.
+    @sp.entry_point
+    def addOrphanage(self, params):
+        sp.verify(params.id !=0, "Enter your orphanage id")
+        sp.if self.data.orphans.contains(params.id):
+            sp.failwith("The id already exist")
+        sp.else:    
+            # Verifies if mandatory fields have values. 
+            sp.verify(params.id != 0)
+            # Declare the parameter types.
+            sp.set_type(params.id, sp.TInt)
+            sp.set_type(params.name, sp.TString)
+            sp.set_type(params.headOffice, sp.TString)
+            sp.set_type(params.registrationNumber, sp.TString)
+            sp.set_type(params.country, sp.TString)
+            sp.set_type(params.city, sp.TString)
+            sp.set_type(params.publicKey, sp.TAddress)
+            sp.set_type(params.description, sp.TString)
+            # Defines a Orphanage record, so we can add to a Map.
+            orphanage = sp.record(id=params.id, description=params.description, publicKey=params.publicKey, name=params.name, headOffice=params.headOffice, registrationNumber=params.registrationNumber, country=params.country, city=params.city, events = sp.map())
+            
+            # Adds the new Orphanage record to a Map (that will reside in the contract's storage).
+            self.data.orphans[params.id] = orphanage   
+        
+    @sp.entry_point
+    def addEvents(self, params):
+        sp.verify(params.orphanageRef !=0, "Enter the orphanage reference or id")
+        sp.if self.data.orphans.contains(params.orphanageRef):
+            
+            # Declare the parameter types.
+            sp.set_type(params.id, sp.TInt)
+            sp.set_type(params.eventName, sp.TString)
+            sp.set_type(params.eventDescription, sp.TString)
+            sp.set_type(params.goal, sp.TMutez)
+            sp.set_type(params.date, sp.TTimestamp)
+
+            # Defines an event record, so we can add to a Map.
+            event = sp.record(id=params.id, eventName=params.eventName, eventDescription=params.eventDescription, goal=params.goal, date=params.date, donations = sp.list([]), withdrawals = sp.list([]), balance = sp.tez(0))
+    
+            # Adds the new event for a Ophanage record to a Map (that will reside in the contract's storage).
+            self.data.orphans[params.orphanageRef].events[params.id] = event                        
+            
+        sp.else: 
+            sp.failwith("The orphanage id doesn't exist")
+
+
+    @sp.entry_point
+    def addDonation(self, params):
+        sp.verify(params.orphanageRef !=0, "Enter your orphanage id")
+        sp.verify(params.eventRef !=0, "Enter your event id")
+        sp.if self.data.orphans.contains(params.id) :
+            sp.if self.data.orphans[params.orphanageRef].events.contains(params.eventRef) :
+
+                # Verifies if mandatory fields have values. 
+                sp.verify(params.orphanageRef != 0)
+                sp.verify(params.amount != sp.tez(0))
+                # Declare the parameter types.
+                sp.set_type(params.id, sp.TInt)
+                sp.set_type(params.orphanageRef, sp.TInt)
+                sp.set_type(params.eventRef, sp.TInt)
+                sp.set_type(params.publicKey, sp.TAddress)
+                sp.set_type(params.amount, sp.TMutez)
+                donation = sp.record(id= params.id, orphanageRef = params.orphanageRef, publicKey = params.publicKey , amount=params.amount)
+                self.data.orphans[params.orphanageRef].events[params.eventRef].donations.push(donation)
+                self.data.orphans[params.orphanageRef].events[params.eventRef].balance = self.data.orphans[params.orphanageRef].events[params.eventRef].balance + params.amount
+            sp.else: 
+                sp.failwith("The event id doesn't exist")
+        sp.else: 
+           sp.failwith("The orphanage id doesn't exist")
+
+  
+    @sp.entry_point
+    def withdrawalRequest(self, params):
+        #verify if he is the owner of this orphanage
+        sp.verify(params.orphanageRef !=0, "Enter the orphanage id")
+        sp.verify(params.eventRef !=0, "Enter the event id")
+        sp.if self.data.orphans.contains(params.orphanageRef):
+            # Verifies if mandatory fields have values. 
+            sp.verify(params.orphanageRef != 0)
+            # Declare the parameter types.  
+            sp.set_type(params.orphanageRef, sp.TInt)
+            sp.set_type(params.eventRef, sp.TInt)
+            sp.set_type(params.publicKey, sp.TAddress)
+            sp.set_type(params.amount, sp.TMutez)
+            sp.set_type(params.date, sp.TTimestamp)
+            #verify if the amount is valid before permitting withdraw
+            balance =self.data.orphans[params.orphanageRef].events[params.eventRef].balance
+            sp.verify(params.amount >= balance, "Impossible to withdraw when amount demanded  not enough")
+            self.data.orphans[params.orphanageRef].events[params.eventRef].balance = self.data.orphans[params.orphanageRef].events[params.eventRef].balance - params.amount
+            withdrawal = sp.record(publicKey = params.publicKey, amount = params.amount, date=params.date)
+            self.data.orphans[params.orphanageRef].events[params.eventRef].withdrawals.push(withdrawal)
+        sp.else: 
+            sp.failwith("The orphanage id doesn't exist")
+
+
+    @sp.add_test(name = "TezOfJoySmartContract")
+    def test():
+        # Instantiate a contract inherited from the TezOfJoy Class.
+        myContract = TezOfJoySmartContract()
+        
+        # Defines a test scenario.
+        scenario = sp.test_scenario()
+        scenario.h2("Let's have a look at TezOfJoys Smart contract Testing")
+
+        # Adds the contract to the test scenario.
+        scenario += myContract
+
+        scenario.h2("Add Orphanage")
+        #Add Orphanage
+        scenario += myContract.addOrphanage(id=1, name="Orphanage 1", headOffice="Douala, Akwa Nord", registrationNumber="237LTDJH", country="Cameroun", city="Douala", publicKey=sp.address("tz1M6x9Y4cAGWpmkJjrSopTLfTLAUVmCZoLv"), description="descriptions" ).run(valid=True)
+        scenario.h2("Attempt to add already existant Orphanage error test")
+        #scenario += myContract.addOrphanage(id=1, name="Orphanage 1", headOffice="Douala, Akwa Nord", registrationNumber="237LTDJH", country="Cameroun", city="Douala", publicKey=sp.address("tz1M6x9Y4cAGWpmkJjrSopTLfTLAUVmCZoLv"), description="descriptions" ).run(valid=True)
+
+        scenario.h2("Add an event")
+        #Add Event
+        scenario += myContract.addEvents(id=1, orphanageRef=1, eventDescription="eventDescription 1", eventName="EventName 1", goal=sp.tez(100), date=sp.timestamp(12445598) ).run(valid=True)
+        #scenario += myContract.addParticipants(id=1, publicKey=sp.address("tz1M6x9Y4cAGWpmkJjrSopTLfTLAUVmCZoLv"), Rang="2").run(valid=True)
+        #scenario.h2("Attempt to add Participant when number of participants already attained error test")
+        #scenario += myContract.addParticipants(id=1, publicKey=sp.address("tz1M6x9Y4cAGWpmkJjrSopTLfTLAUVmCZoLv"), Rang="2").run(valid=False)
+        #scenario.h2("Attempt to add Participant to unexistant Tontine error test")
+        #scenario += myContract.addParticipants(id=3, publicKey=sp.address("tz1M6x9Y4cAGWpmkJjrSopTLfTLAUVmCZoLv"), Rang="1").run(valid=False)
