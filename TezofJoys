@@ -22,28 +22,28 @@ class TezOfJoySmartContract(sp.Contract):
             sp.set_type(params.publicKey, sp.TAddress)
             sp.set_type(params.description, sp.TString)
             # Defines a Orphanage record, so we can add to a Map.
-            orphanage = sp.record(id=params.id, description=params.description, publicKey=params.publicKey, name=params.name, headOffice=params.headOffice, registrationNumber=params.registrationNumber, country=params.country, city=params.city, events = sp.map())
+            orphanage = sp.record(id=params.id, description=params.description, publicKey=params.publicKey, name=params.name, headOffice=params.headOffice, registrationNumber=params.registrationNumber, country=params.country, city=params.city, causes = sp.map())
             
             # Adds the new Orphanage record to a Map (that will reside in the contract's storage).
             self.data.orphans[params.id] = orphanage   
         
     @sp.entry_point
-    def addEvents(self, params):
+    def addCause(self, params):
         sp.verify(params.orphanageRef !=0, "Enter the orphanage reference or id")
         sp.if self.data.orphans.contains(params.orphanageRef):
             
             # Declare the parameter types.
             sp.set_type(params.id, sp.TInt)
-            sp.set_type(params.eventName, sp.TString)
-            sp.set_type(params.eventDescription, sp.TString)
+            sp.set_type(params.causeName, sp.TString)
+            sp.set_type(params.causeDescription, sp.TString)
             sp.set_type(params.goal, sp.TMutez)
             sp.set_type(params.date, sp.TTimestamp)
 
-            # Defines an event record, so we can add to a Map.
-            event = sp.record(id=params.id, eventName=params.eventName, eventDescription=params.eventDescription, goal=params.goal, date=params.date, donations = sp.list([]), withdrawals = sp.list([]), balance = sp.tez(0))
+            # Defines an cause record, so we can add to a Map.
+            cause = sp.record(id=params.id, causeName=params.causeName, causeDescription=params.causeDescription, goal=params.goal, date=params.date, donations = sp.list([]), withdrawals = sp.list([]), balance = sp.tez(0))
     
-            # Adds the new event for a Ophanage record to a Map (that will reside in the contract's storage).
-            self.data.orphans[params.orphanageRef].events[params.id] = event                        
+            # Adds the new cause for a Ophanage record to a Map (that will reside in the contract's storage).
+            self.data.orphans[params.orphanageRef].causes[params.id] = cause                        
             
         sp.else: 
             sp.failwith("The orphanage id doesn't exist")
@@ -52,9 +52,9 @@ class TezOfJoySmartContract(sp.Contract):
     @sp.entry_point
     def addDonation(self, params):
         sp.verify(params.orphanageRef !=0, "Enter your orphanage id")
-        sp.verify(params.eventRef !=0, "Enter your event id")
+        sp.verify(params.eventRef !=0, "Enter your cause id")
         sp.if self.data.orphans.contains(params.id) :
-            sp.if self.data.orphans[params.orphanageRef].events.contains(params.eventRef) :
+            sp.if self.data.orphans[params.orphanageRef].causes.contains(params.eventRef) :
 
                 # Verifies if mandatory fields have values. 
                 sp.verify(params.orphanageRef != 0)
@@ -62,14 +62,14 @@ class TezOfJoySmartContract(sp.Contract):
                 # Declare the parameter types.
                 sp.set_type(params.id, sp.TInt)
                 sp.set_type(params.orphanageRef, sp.TInt)
-                sp.set_type(params.eventRef, sp.TInt)
+                sp.set_type(params.causeRef, sp.TInt)
                 sp.set_type(params.publicKey, sp.TAddress)
                 sp.set_type(params.amount, sp.TMutez)
                 donation = sp.record(id= params.id, orphanageRef = params.orphanageRef, publicKey = params.publicKey , amount=params.amount)
-                self.data.orphans[params.orphanageRef].events[params.eventRef].donations.push(donation)
-                self.data.orphans[params.orphanageRef].events[params.eventRef].balance = self.data.orphans[params.orphanageRef].events[params.eventRef].balance + params.amount
+                self.data.orphans[params.orphanageRef].causes[params.causeRef].donations.push(donation)
+                self.data.orphans[params.orphanageRef].causes[params.causeRef].balance = self.data.orphans[params.orphanageRef].causes[params.causeRef].balance + params.amount
             sp.else: 
-                sp.failwith("The event id doesn't exist")
+                sp.failwith("The cause id doesn't exist")
         sp.else: 
            sp.failwith("The orphanage id doesn't exist")
 
@@ -78,22 +78,22 @@ class TezOfJoySmartContract(sp.Contract):
     def withdrawalRequest(self, params):
         #verify if he is the owner of this orphanage
         sp.verify(params.orphanageRef !=0, "Enter the orphanage id")
-        sp.verify(params.eventRef !=0, "Enter the event id")
+        sp.verify(params.causeRef !=0, "Enter the cause id")
         sp.if self.data.orphans.contains(params.orphanageRef):
             # Verifies if mandatory fields have values. 
             sp.verify(params.orphanageRef != 0)
             # Declare the parameter types.  
             sp.set_type(params.orphanageRef, sp.TInt)
-            sp.set_type(params.eventRef, sp.TInt)
+            sp.set_type(params.causeRef, sp.TInt)
             sp.set_type(params.publicKey, sp.TAddress)
             sp.set_type(params.amount, sp.TMutez)
             sp.set_type(params.date, sp.TTimestamp)
             #verify if the amount is valid before permitting withdraw
-            balance =self.data.orphans[params.orphanageRef].events[params.eventRef].balance
+            balance =self.data.orphans[params.orphanageRef].causes[params.causeRef].balance
             sp.verify(params.amount >= balance, "Impossible to withdraw when amount demanded  not enough")
-            self.data.orphans[params.orphanageRef].events[params.eventRef].balance = self.data.orphans[params.orphanageRef].events[params.eventRef].balance - params.amount
+            self.data.orphans[params.orphanageRef].causes[params.causeRef].balance = self.data.orphans[params.orphanageRef].causes[params.causeRef].balance - params.amount
             withdrawal = sp.record(publicKey = params.publicKey, amount = params.amount, date=params.date)
-            self.data.orphans[params.orphanageRef].events[params.eventRef].withdrawals.push(withdrawal)
+            self.data.orphans[params.orphanageRef].causes[params.causeRef].withdrawals.push(withdrawal)
         sp.else: 
             sp.failwith("The orphanage id doesn't exist")
 
@@ -116,11 +116,7 @@ class TezOfJoySmartContract(sp.Contract):
         scenario.h2("Attempt to add already existant Orphanage error test")
         #scenario += myContract.addOrphanage(id=1, name="Orphanage 1", headOffice="Douala, Akwa Nord", registrationNumber="237LTDJH", country="Cameroun", city="Douala", publicKey=sp.address("tz1M6x9Y4cAGWpmkJjrSopTLfTLAUVmCZoLv"), description="descriptions" ).run(valid=True)
 
-        scenario.h2("Add an event")
-        #Add Event
-        scenario += myContract.addEvents(id=1, orphanageRef=1, eventDescription="eventDescription 1", eventName="EventName 1", goal=sp.tez(100), date=sp.timestamp(12445598) ).run(valid=True)
-        #scenario += myContract.addParticipants(id=1, publicKey=sp.address("tz1M6x9Y4cAGWpmkJjrSopTLfTLAUVmCZoLv"), Rang="2").run(valid=True)
-        #scenario.h2("Attempt to add Participant when number of participants already attained error test")
-        #scenario += myContract.addParticipants(id=1, publicKey=sp.address("tz1M6x9Y4cAGWpmkJjrSopTLfTLAUVmCZoLv"), Rang="2").run(valid=False)
-        #scenario.h2("Attempt to add Participant to unexistant Tontine error test")
-        #scenario += myContract.addParticipants(id=3, publicKey=sp.address("tz1M6x9Y4cAGWpmkJjrSopTLfTLAUVmCZoLv"), Rang="1").run(valid=False)
+        scenario.h2("Add a cause")
+        #Add cause
+        scenario += myContract.addCause(id=1, orphanageRef=1, causeDescription="eventDescription 1", causeName="EventName 1", goal=sp.tez(100), date=sp.timestamp(12445598) ).run(valid=True)
+        
