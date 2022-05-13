@@ -52,7 +52,7 @@ class TezOfJoySmartContract(sp.Contract):
     @sp.entry_point
     def addDonation(self, params):
         sp.verify(params.orphanageRef !=0, "Enter your orphanage id")
-        sp.verify(params.eventRef !=0, "Enter your cause id")
+        sp.verify(params.causeRef !=0, "Enter your cause id")
         sp.if self.data.orphans.contains(params.id) :
             sp.if self.data.orphans[params.orphanageRef].causes.contains(params.eventRef) :
 
@@ -65,7 +65,7 @@ class TezOfJoySmartContract(sp.Contract):
                 sp.set_type(params.causeRef, sp.TInt)
                 sp.set_type(params.publicKey, sp.TAddress)
                 sp.set_type(params.amount, sp.TMutez)
-                donation = sp.record(id= params.id, orphanageRef = params.orphanageRef, publicKey = params.publicKey , amount=params.amount)
+                donation = sp.record(id= params.id, orphanageRef = params.orphanageRef, causeRef=params.causeRef, publicKey = params.publicKey , amount=params.amount)
                 self.data.orphans[params.orphanageRef].causes[params.causeRef].donations.push(donation)
                 self.data.orphans[params.orphanageRef].causes[params.causeRef].balance = self.data.orphans[params.orphanageRef].causes[params.causeRef].balance + params.amount
             sp.else: 
